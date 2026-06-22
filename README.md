@@ -279,4 +279,172 @@ IF lines( it_header ) > 0.
   ENDIF.
 ENDIF.
 
-FM
+**FM  - ZOPS_FM_CHARG_BEFORE_UPDATE**
+
+FUNCTION zops_fm_charg_before_update.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(IT_HEADER) TYPE  COBAI_T_HEADER
+*"     REFERENCE(IT_HEADER_OLD) TYPE  COBAI_T_HEADER_OLD
+*"     REFERENCE(IT_ITEM) TYPE  COBAI_T_ITEM
+*"     REFERENCE(IT_ITEM_OLD) TYPE  COBAI_T_ITEM_OLD
+*"     REFERENCE(IT_SEQUENCE) TYPE  COBAI_T_SEQUENCE
+*"     REFERENCE(IT_SEQUENCE_OLD) TYPE  COBAI_T_SEQUENCE_OLD
+*"     REFERENCE(IT_OPERATION) TYPE  COBAI_T_OPERATION
+*"     REFERENCE(IT_OPERATION_OLD_AFVC) TYPE
+*"        COBAI_T_OPERATION_OLD_AFVC
+*"     REFERENCE(IT_OPERATION_OLD_AFVV) TYPE
+*"        COBAI_T_OPERATION_OLD_AFVV
+*"     REFERENCE(IT_OPERATION_OLD_AFVU) TYPE
+*"        COBAI_T_OPERATION_OLD_AFVU
+*"     REFERENCE(IT_COMPONENT) TYPE  COBAI_T_COMPONENT
+*"     REFERENCE(IT_COMPONENT_OLD) TYPE  COBAI_T_COMPONENT_OLD
+*"     REFERENCE(IT_RELATIONSHIP) TYPE  COBAI_T_RELATIONSHIP
+*"     REFERENCE(IT_RELATIONSHIP_OLD) TYPE  COBAI_T_RELATIONSHIP_OLD
+*"     REFERENCE(IT_PSTEXT) TYPE  COBAI_T_PSTEXT
+*"     REFERENCE(IT_PSTEXT_OLD) TYPE  COBAI_T_PSTEXT_OLD
+*"     REFERENCE(IT_MILESTONE) TYPE  COBAI_T_MILESTONE
+*"     REFERENCE(IT_MILESTONE_OLD) TYPE  COBAI_T_MILESTONE_OLD
+*"     REFERENCE(IT_PLANNED_ORDER) TYPE  COBAI_T_PLANNED_ORDER
+*"     REFERENCE(IT_STATUS) TYPE  COBAI_T_STATUS
+*"     REFERENCE(IT_STATUS_OLD) TYPE  COBAI_T_STATUS_OLD
+*"     REFERENCE(IT_OPR_RELATIONS) TYPE  COBAI_T_OPR_RELATIONS
+*"     REFERENCE(IT_OPR_RELATIONS_OLD) TYPE  COBAI_T_OPR_RELATIONS_OLD
+*"     REFERENCE(IT_DOCLINK) TYPE  COBAI_T_DOCLINK
+*"     REFERENCE(IT_DOCLINK_OLD) TYPE  COBAI_T_DOCLINK_OLD
+*"     REFERENCE(IT_PRT_ALLOCATION) TYPE  COBAI_T_PRT_ALLOCATION
+*"     REFERENCE(IT_PRT_ALLOCATION_OLD) TYPE
+*"        COBAI_T_PRT_ALLOCATION_OLD
+*"     REFERENCE(IT_PMPARTNER) TYPE  COBAI_T_PMPARTNER
+*"     REFERENCE(IT_PMPARTNER_OLD) TYPE  COBAI_T_PMPARTNER_OLD
+*"     REFERENCE(IT_PIINSTRUCTION) TYPE  COBAI_T_PIINSTRUCTION
+*"     REFERENCE(IT_PIINSTRUCTIONVALUE) TYPE
+*"        COBAI_T_PIINSTRUCTIONVALUE
+*"----------------------------------------------------------------------
+*----------------------------------------------------------------------*
+*Development ID:  ZDDE-00064879                                        *
+*Functional Spec: ZFSE-00064878                                        *
+*Description: Update Date of Manufacture and SLED/BBD in Basic Data1   *
+*Path: BADI WORKORDER_UPDATE -> ZPO_WORKORDER_UPDATE                   *
+* -> ZCL_IM_PO_WORKORDER_UPDATE -> IF_EX_WORKORDER_UPDATE~BEFORE_UPDATE*
+*     -> ZOPS_INC_PO_BEFORE_UPDATE -> ZOPS_FM_CHARG_BEFORE_UPDATE      *
+*-----------------------------------------------------------------------
+*Change Log:                                                           *
+*----------------------------------------------------------------------*
+* Who       Date           CR            Text                          *
+* KOPPIKR2  04-May-2026  1100276859    Initial Development             *
+*----------------------------------------------------------------------*
+
+  DATA: lr_werks  TYPE RANGE OF werks.
+
+  CONSTANTS: lc_repid TYPE progname VALUE 'ZOPS_FM_CHARG_BEFORE_UPDATE',
+             lc_werks TYPE zparname VALUE 'WERKS'.
+
+  DATA(ls_header)  = VALUE #( it_header[ 1 ] OPTIONAL ).
+  DATA(ls_item)    = VALUE #( it_item[ 1 ] OPTIONAL ).
+  SELECT 'I' AS sign, 'EQ' AS constant, value AS low ,
+     CAST( @space AS CHAR( 80 ) ) AS high
+     FROM zgq_parameter
+     INTO TABLE @lr_werks
+     WHERE repid EQ @lc_repid
+    AND param EQ @lc_werks.
+
+  IF ls_header-werks IS NOT INITIAL AND ls_header-werks IN lr_werks AND ls_item-charg IS NOT INITIAL.
+
+    CALL FUNCTION 'ZOPS_CHARG_BEFORE_UPDATE_BDG' IN BACKGROUND TASK
+      EXPORTING
+        it_header = it_header
+        it_item   = it_item.
+  ENDIF.
+ENDFUNCTION.
+
+**BDG FM to UPD manuf date and SLED  - ZOPS_CHARG_BEFORE_UPDATE_BDG**
+
+
+
+FUNCTION zops_charg_before_update_bdg.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IT_HEADER) TYPE  OPS_T_CAUFVDB
+*"     VALUE(IT_ITEM) TYPE  CO_TT_AFPOB
+*"----------------------------------------------------------------------
+*----------------------------------------------------------------------*
+*Development ID:  ZDDE-00064879                                        *
+*Functional Spec: ZFSE-00064878                                        *
+*Description: Update Date of Manufacture and SLED/BBD in Basic Data1   *
+*Path: BADI WORKORDER_UPDATE -> ZPO_WORKORDER_UPDATE                   *
+* -> ZCL_IM_PO_WORKORDER_UPDATE -> IF_EX_WORKORDER_UPDATE~BEFORE_UPDATE*
+*     -> ZOPS_INC_PO_BEFORE_UPDATE -> ZOPS_FM_CHARG_BEFORE_UPDATE      *
+*-----------------------------------------------------------------------
+*Change Log:                                                           *
+*----------------------------------------------------------------------*
+* Who       Date           CR            Text                          *
+* KOPPIKR2  04-May-2026  1100291672    Initial Development             *
+*----------------------------------------------------------------------*
+
+  DATA: ls_komkr TYPE komkr.
+
+  CONSTANTS: lc_repid     TYPE progname VALUE 'ZOPS_CHARG_BEFORE_UPDATE_BDG',
+             lc_drvev     TYPE zconst   VALUE 'DRVEV',
+             lc_wait_time TYPE zconst   VALUE 'WAIT_TIME'.
+
+  DATA(ls_header)  = VALUE #( it_header[ 1 ] OPTIONAL ).
+  DATA(ls_item)    = VALUE #( it_item[ 1 ] OPTIONAL ).
+* GT_HEADER and GT_ITEM is used in FM ZOPS_FM_PRINT_BATCH_UPD
+  gt_header = CORRESPONDING #( it_header ).
+  gt_item   = CORRESPONDING #( it_item ).
+
+  SELECT repid,
+         param,
+         counter,
+         value
+         FROM zgq_parameter
+         INTO TABLE @DATA(lt_parameter)
+         WHERE repid EQ @lc_repid.
+
+  IF lt_parameter IS NOT INITIAL.
+    DATA(lv_drvev) = VALUE #( lt_parameter[ param = lc_drvev ]-value OPTIONAL ).
+    DATA(lv_wait_time) = VALUE #( lt_parameter[ param = lc_wait_time ]-value OPTIONAL ).
+  ENDIF.
+  ls_komkr-drvev   = lv_drvev.
+  ls_komkr-r_charg = ls_item-charg.
+  ls_komkr-r_werks = ls_header-werks.
+  ls_komkr-r_matnr = ls_header-matnr.
+
+  SELECT  SINGLE hsdat, vfdat
+   FROM mch1
+   WHERE charg = @ls_item-charg
+   AND matnr = @ls_header-matnr
+   INTO @DATA(ls_date).
+
+  IF ls_date-hsdat IS INITIAL AND ls_date-vfdat IS INITIAL.
+
+    CALL FUNCTION 'ENQUE_SLEEP'
+      EXPORTING
+        seconds        = lv_wait_time
+      EXCEPTIONS
+        system_failure = 1
+        OTHERS         = 2.
+    IF sy-subrc IS INITIAL.
+      /scwm/cl_tm=>cleanup( ).
+    ENDIF.
+**To derive the Date of Manufacture and SLED/BBD on Manual creation of Batch
+    CALL FUNCTION 'VBDRV_DERIVATION'
+      EXPORTING
+        i_komkr                        = ls_komkr
+      EXCEPTIONS
+        repeated_derivation            = 1
+        no_derivation                  = 2
+        dont_save                      = 3
+        derivation_status_error        = 4
+        derivation_status_warning      = 5
+        no_batch_status_change_allowed = 6
+        OTHERS                         = 7.
+
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+  ENDIF.
+ENDFUNCTION.
