@@ -448,3 +448,8 @@ FUNCTION zops_charg_before_update_bdg.
     ENDIF.
   ENDIF.
 ENDFUNCTION.
+
+**Important Points or TCODES**
+1) SM58 - Transactional RFC  (Execute LUW)
+2) SM13 - Update request ( Do repeat Update )
+
